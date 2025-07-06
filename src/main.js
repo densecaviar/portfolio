@@ -2,14 +2,13 @@ console.log("Im alive");
 
 const config = {
     type: Phaser.AUTO,
-    width: 800,
-    height: 600,
+    width: 730,
+    height: 1000,
     parent: 'game-container',
-
     physics: {
         default: 'arcade',
         arcade: {
-            gravity: { y: 300 },
+            gravity: { y: 0 }, // No gravity for top-down
             debug: false
         }
     },
@@ -23,102 +22,103 @@ const config = {
 const game = new Phaser.Game(config);
 
 let player;
-let platforms;
 let cursors;
 
 function preload() {
-    // --- Changes for new image dimensions and types ---
-
-    // Sky image: Now sky.jpg as per your input
-    // The original sky image was 736x1104, so it's taller than the game canvas.
-    // We'll scale it to fill the entire game width/height in create().
-    this.load.image('sky', 'assets/images/sky.jpg');
-
-    // Ground image: Now ground.png as per your input
-    // The original ground image was 1350x860. It's very large.
-    // We'll scale it down to fit the game width and a reasonable platform height in create().
-    this.load.image('ground', 'assets/images/ground.png');
-
-    // Dude spritesheet: Now dude.jpg (assuming you have this file)
-    // IMPORTANT: Spritesheets typically need transparency, which JPGs don't support.
-    // If your character has a background color that you want to be transparent,
-    // you might see a solid box around them. A .PNG file with transparency is ideal for spritesheets.
-    // However, for loading, we'll use dude.jpg as per your specified path.
-    // New frame dimensions: 256x256 pixels, 16 images (4x4 grid) => 256/4 = 64 pixels per frame.
+    this.load.image('grass', 'assets/images/grass.jpg');
+    this.load.image('centre', 'assets/images/centre.png'); // Load building
     this.load.spritesheet('dude',
-        'assets/images/dude.jpg', // Changed to .jpg as per your input
-        { frameWidth: 64, frameHeight: 64 } // Corrected frame dimensions based on 256x256 / 4 images
+        'assets/images/dude.jpg',
+        { frameWidth: 64, frameHeight: 64 }
     );
 }
 
 function create() {
-    // Add the sky background
-    // We use .setDisplaySize() to stretch the sky image to fit the 800x600 game canvas.
-    this.add.image(400, 300, 'sky').setDisplaySize(game.config.width, game.config.height);
+    this.add.image(350, 500, 'grass').setDisplaySize(game.config.width, game.config.height);
 
-    // Create platforms group
-    platforms = this.physics.add.staticGroup();
+    // Add building (centre) in the middle of the map
+    const building = this.physics.add.staticSprite(game.config.width / 2, game.config.height / 2, 'centre');
+    building.setOrigin(0.5, 0.5);
+    building.setScale(3); // Make the building 3 times bigger
+    building.refreshBody(); // Update collision boundaries after scaling
+    // Set a smaller collision box (80% of display size)
+    const displayWidth = building.displayWidth;
+    const displayHeight = building.displayHeight;
+    building.body.setSize(displayWidth * 0.8, displayHeight * 0.8);
+    building.body.setOffset(displayWidth * 0.1, displayHeight * 0.1);
 
-    // Create the continuous ground platform
-    // We position it at y=550 (center) with a display height of 100 pixels,
-    // making its bottom edge at 550 + 50 = 600 (the bottom of the screen).
-    // We stretch its display width to fill the entire game width (800 pixels).
-    platforms.create(400, 550, 'ground').setDisplaySize(game.config.width, 100).refreshBody();
-
-    // Create the player sprite
-    // Adjusted initial Y position to account for the ground being slightly higher (y=550 instead of 568)
-    player = this.physics.add.sprite(100, 400, 'dude');
-
-    player.setBounce(0.2);
+    player = this.physics.add.sprite(100, 300, 'dude');
     player.setCollideWorldBounds(true);
 
-    // --- Corrected Player Animations based on 4x4 grid (0-indexed frames) ---
+    // Animations (reuse left/right/turn for now)
     this.anims.create({
         key: 'left',
-        frames: this.anims.generateFrameNumbers('dude', { start: 4, end: 7 }), // Second row (frames 4, 5, 6, 7)
+        frames: this.anims.generateFrameNumbers('dude', { start: 4, end: 7 }),
         frameRate: 10,
         repeat: -1
+    });
+    this.anims.create({
+        key: 'up',
+        frames: this.anims.generateFrameNumbers('dude', { start: 12, end: 15 }),
+        frameRate: 20
     });
 
     this.anims.create({
         key: 'turn',
-        frames: [{ key: 'dude', frame: 0 }], // Assuming frame 0 is the idle/front-facing pose (first frame)
+        frames: [{ key: 'dude', frame: 0 }], // Idle frame
+        frameRate: 1
+    })
+
+    this.anims.create({
+        key: 'down',
+        frames: this.anims.generateFrameNumbers('dude', { start: 0, end: 3 }),
         frameRate: 20
     });
 
     this.anims.create({
         key: 'right',
-        frames: this.anims.generateFrameNumbers('dude', { start: 8, end: 11 }), // Third row (frames 8, 9, 10, 11)
+        frames: this.anims.generateFrameNumbers('dude', { start: 8, end: 11 }),
         frameRate: 10,
         repeat: -1
     });
 
     cursors = this.input.keyboard.createCursorKeys();
 
-    this.physics.add.collider(player, platforms);
+    // Enable collision between player and building
+    this.physics.add.collider(player, building);
 
-    const projectArea = this.add.rectangle(300, 500, 150, 100, 0x0000FF);
-    projectArea.setOrigin(0.5);
-    this.add.text(projectArea.x, projectArea.y, 'My ML Project', {
-        fontSize: '16px',
-        fill: '#ffffff',
-        align: 'center'
-    }).setOrigin(0.5);
+    // Detect overlap to show projects
+    this.physics.add.overlap(player, building, () => {
+        // Replace this with your own popup/modal logic
+        alert('My Projects:\n- Project 1\n- Project 2\n- Project 3');
+    }, null, this);
 }
 
 function update() {
-    if (cursors.left.isDown) {
-        player.setVelocityX(-160);
-        player.anims.play('left', true);
-    } else if (cursors.right.isDown) {
-        player.setVelocityX(160);
-        player.anims.play('right', true);
-    } else {
-        player.setVelocityX(0);
-        player.anims.play('turn');
-    }
+    player.setVelocity(0);
+    let moving = false;
 
-    if (cursors.up.isDown && player.body.touching.down) {
-        player.setVelocityY(-330);
+    if (cursors.left.isDown) {
+        player.setVelocityX(-200);
+        player.anims.play('left', true);
+        moving = true;
+    } 
+    else if (cursors.right.isDown) {
+        player.setVelocityX(200);
+        player.anims.play('right', true);
+        moving = true;
+    }
+    else if (cursors.up.isDown) {
+        player.setVelocityY(-200);
+        player.anims.play('up', true);
+        moving = true;
+    } 
+    else if (cursors.down.isDown) {
+        player.setVelocityY(200);
+        player.anims.play('down', true);
+        moving = true;
+    }
+    if (!moving) {
+        player.anims.play('turn'); // Always show frame 0 when idle
     }
 }
