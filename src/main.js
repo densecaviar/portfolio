@@ -1,99 +1,124 @@
-console.log("Im alive")
+console.log("Im alive");
 
 const config = {
-type: Phaser.AUTO, // Automatically choose between WebGL and Canvas for optimized performance  
-width: 800,
-height: 600,
-parent: 'game-container', // The ID of the HTML element where the game canvas will be injected
+    type: Phaser.AUTO,
+    width: 800,
+    height: 600,
+    parent: 'game-container',
 
-physics : {
-    default: 'arcade', // Using Phaser's arcade physics engine
-    arcade: {
-        gravity: {y:300}, // apply a downward gravity of 300 pixels/second^2
-        debug: false
+    physics: {
+        default: 'arcade',
+        arcade: {
+            gravity: { y: 300 },
+            debug: false
+        }
+    },
+    scene: {
+        preload: preload,
+        create: create,
+        update: update
     }
-
-},
-scene: {
-    preload:  preload, // function to load assets before game starts
-    create: create,    // function to set up the game world once assets are loaded
-    update: update     // function that runs continuously, handling game logic and updates
-}
-
 };
 
 const game = new Phaser.Game(config);
-//preload() to load assets
+
+let player;
+let platforms;
+let cursors;
+
 function preload() {
-    //load the sky background image 
-this.load.image('sky','assets/images/sky.jpg');
-    // load the ground platform image 
+    // --- Changes for new image dimensions and types ---
 
-    this.load.image('platform','assets/images/ground.png');
+    // Sky image: Now sky.jpg as per your input
+    // The original sky image was 736x1104, so it's taller than the game canvas.
+    // We'll scale it to fill the entire game width/height in create().
+    this.load.image('sky', 'assets/images/sky.jpg');
 
-    this.load.spritesheet('dude', 
-    'assets/images/dude.jpg', 
-    {frameWidth: 32, frameHeight: 48}
-);
+    // Ground image: Now ground.png as per your input
+    // The original ground image was 1350x860. It's very large.
+    // We'll scale it down to fit the game width and a reasonable platform height in create().
+    this.load.image('ground', 'assets/images/ground.png');
 
+    // Dude spritesheet: Now dude.jpg (assuming you have this file)
+    // IMPORTANT: Spritesheets typically need transparency, which JPGs don't support.
+    // If your character has a background color that you want to be transparent,
+    // you might see a solid box around them. A .PNG file with transparency is ideal for spritesheets.
+    // However, for loading, we'll use dude.jpg as per your specified path.
+    // New frame dimensions: 256x256 pixels, 16 images (4x4 grid) => 256/4 = 64 pixels per frame.
+    this.load.spritesheet('dude',
+        'assets/images/dude.jpg', // Changed to .jpg as per your input
+        { frameWidth: 64, frameHeight: 64 } // Corrected frame dimensions based on 256x256 / 4 images
+    );
 }
-// create() to create game objects 
-function create(){
 
-    let player;
-    let platforms;
-    let cursors;
+function create() {
+    // Add the sky background
+    // We use .setDisplaySize() to stretch the sky image to fit the 800x600 game canvas.
+    this.add.image(400, 300, 'sky').setDisplaySize(game.config.width, game.config.height);
 
-    this.add.image(400,300,'sky');
-
+    // Create platforms group
     platforms = this.physics.add.staticGroup();
 
+    // Create the continuous ground platform
+    // We position it at y=550 (center) with a display height of 100 pixels,
+    // making its bottom edge at 550 + 50 = 600 (the bottom of the screen).
+    // We stretch its display width to fill the entire game width (800 pixels).
+    platforms.create(400, 550, 'ground').setDisplaySize(game.config.width, 100).refreshBody();
 
-    platforms.create(400,568,'ground').setScale(2).refreshBody();
+    // Create the player sprite
+    // Adjusted initial Y position to account for the ground being slightly higher (y=550 instead of 568)
+    player = this.physics.add.sprite(100, 400, 'dude');
 
-    player = this.physics.add.sprite(100,450, 'dude');
-    
     player.setBounce(0.2);
     player.setCollideWorldBounds(true);
 
+    // --- Corrected Player Animations based on 4x4 grid (0-indexed frames) ---
     this.anims.create({
         key: 'left',
-        frames: this.anims.generateFrameNumbers('dude',{start: 4, end: 7}),
+        frames: this.anims.generateFrameNumbers('dude', { start: 4, end: 7 }), // Second row (frames 4, 5, 6, 7)
         frameRate: 10,
         repeat: -1
     });
 
     this.anims.create({
         key: 'turn',
-        frames: [{ key: 'dude', frame: 0}],
+        frames: [{ key: 'dude', frame: 0 }], // Assuming frame 0 is the idle/front-facing pose (first frame)
         frameRate: 20
     });
 
     this.anims.create({
         key: 'right',
-        frames: this.anims.generateFrameNumbers('dude', { start: 8, end: 11 }),
+        frames: this.anims.generateFrameNumbers('dude', { start: 8, end: 11 }), // Third row (frames 8, 9, 10, 11)
         frameRate: 10,
         repeat: -1
     });
 
     cursors = this.input.keyboard.createCursorKeys();
 
-
     this.physics.add.collider(player, platforms);
 
-    const projectArea = this.add.rectangle(300,500,150,100,0x0000FF);
+    const projectArea = this.add.rectangle(300, 500, 150, 100, 0x0000FF);
     projectArea.setOrigin(0.5);
     this.add.text(projectArea.x, projectArea.y, 'My ML Project', {
         fontSize: '16px',
-        fill : '#ffffff',
+        fill: '#ffffff',
         align: 'center'
-    }).setOrigin(0.5); // Center the text on the rectangle
-
+    }).setOrigin(0.5);
 }
 
-//update() runs continuously and updates 
-function update(){
+function update() {
+    if (cursors.left.isDown) {
+        player.setVelocityX(-160);
+        player.anims.play('left', true);
+    } else if (cursors.right.isDown) {
+        player.setVelocityX(160);
+        player.anims.play('right', true);
+    } else {
+        player.setVelocityX(0);
+        player.anims.play('turn');
+    }
 
+    if (cursors.up.isDown && player.body.touching.down) {
+        player.setVelocityY(-330);
+    }
 }
-
-
