@@ -9,3 +9,7 @@ body {
     overflow: hidden; /* prevents scrolling */
     font-family: 'Arial', sans-serif; 
 }
+
+canvas {
+    display: block; /* remove extra space below the canvas */
+}
