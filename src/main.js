@@ -58,14 +58,39 @@ function create(){
 
     this.anims.create({
         key: 'left',
-        frames: this.anims.generateFrameNumbers('dude',{start: 0, end: 3}),
+        frames: this.anims.generateFrameNumbers('dude',{start: 4, end: 7}),
         frameRate: 10,
         repeat: -1
     });
 
+    this.anims.create({
+        key: 'turn',
+        frames: [{ key: 'dude', frame: 0}],
+        frameRate: 20
+    });
 
+    this.anims.create({
+        key: 'right',
+        frames: this.anims.generateFrameNumbers('dude', { start: 8, end: 11 }),
+        frameRate: 10,
+        repeat: -1
+    });
+
+    cursors = this.input.keyboard.createCursorKeys();
+
+
+    this.physics.add.collider(player, platforms);
+
+    const projectArea = this.add.rectangle(300,500,150,100,0x0000FF);
+    projectArea.setOrigin(0.5);
+    this.add.text(projectArea.x, projectArea.y, 'My ML Project', {
+        fontSize: '16px',
+        fill : '#ffffff',
+        align: 'center'
+    }).setOrigin(0.5); // Center the text on the rectangle
 
 }
+
 //update() runs continuously and updates 
 function update(){
 
